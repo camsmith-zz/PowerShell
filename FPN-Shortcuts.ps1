@@ -25,7 +25,7 @@
     General notes
     Created By: Cam Smith
     Created On: July 2021  
-    Last Modified : 15 Sep 2021
+    Last Modified : 16 Sep 2021
   #>
   param (
     $FPNAREA = 'EMDAREA',
@@ -36,12 +36,8 @@
     $SoftwareToInstall = '\\ROKFPN06\n$\Scripts\QFES\softwaretoinstall.txt'
 )
 clear-host
-
-
 $RemoveFiles = (Get-Content "$deletefiles")
 $InstallSoftware = (Get-Content "$SoftwareToInstall")
-
-
 while ($FPNAREA -eq '' ) {
     $FPNAREA = Read-Host -Prompt "Enter FPN Area 'eg ROKAREA'"
 }
@@ -53,15 +49,14 @@ else {
     $PClist = (Read-host -Prompt "Enter path of PCLIST")
     $PCs = (Get-Content "$PClist")
 }
-
 Write-Host -ForegroundColor Red "This List is going to remove the existing drive mappings,
 the common shortcut on \Users\desktop, and will create
-a new mapdrive.bat file and store it in the common 
-startup folder.  It will also create a new common 
-short cut on all users desktop.
-It will also fix the QFES add printer group policy issue with users
-not being able to add printers"
-CMD /c PAUSE
+a new mapdrive.bat file and store it in the common startup 
+folder.  It will also create a new common short cut on 
+all users desktop. It will also fix the QFES add 
+printer group policy issue with users not being 
+able to add printers`n"
+#CMD /c PAUSE
  foreach ($PC in $PCs) {
         Write-Host -ForegroundColor Cyan "Checking for files to delete"
         foreach ($RemoveFile in $RemoveFiles){
@@ -84,7 +79,6 @@ CMD /c PAUSE
         -ItemType "file"`
         -Value "@echo off `nif exist t:\ (net use t: /delete /y >nul 2>nul)`nif exist n:\ (net use n: /delete /y >nul 2>nul)`
 net use n: \\DESQLD.INTERNAL\FPNSHARE\$FPNAREA >nul 2>nul")
-        
         if (Test-Path "\\$PC\c$\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp\mapdrive.bat") {
             Write-Host -ForegroundColor Gray "\\$PC\c$\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp\mapdrive.bat"
         }
@@ -97,30 +91,26 @@ net use n: \\DESQLD.INTERNAL\FPNSHARE\$FPNAREA >nul 2>nul")
         }
         else {
             Write-Host -ForegroundColor RED "Failed to add \\$PC\c$\Users\Public\Desktop\Common.lnk"
-        }
-            
-            
-        Enter-PSSession -ComputerName $PC
-        $RestrictedValue = Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\printers\PointAndPrint' -name Restricted
-        $InForestValue = Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\printers\PointAndPrint' -name InForest
+        }   
+        
+        $RestrictedValue = Invoke-Command -ComputerName $PC {Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\printers\PointAndPrint' -name Restricted }
+        $InForestValue = Invoke-Command -ComputerName $PC {Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\printers\PointAndPrint' -name InForest }
         Write-Host -ForegroundColor Cyan "Fixing adding printer policy"
         if ($RestrictedValue -eq 1){
-            Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\printers\PointAndPrint' -Name Restricted -Value 0
+            Invoke-Command -ComputerName $PC {Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\printers\PointAndPrint' -Name Restricted -Value 0}
             Write-Host -ForegroundColor Gray "Change applied (restricted)"
         }
         else {
             Write-Host -ForegroundColor Gray "No change required (restricted)"
         }
         if ($InForestValue -eq 1){
-            Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\printers\PointAndPrint' -Name InForest -Value 0
+            Invoke-Command -ComputerName $PC {Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\printers\PointAndPrint' -Name InForest -Value 0}
             Write-Host -ForegroundColor Gray  "Change applied (inforest)"
         }
         else{
-            Write-Host -ForegroundColor Gray "No change required (inforest)`n"
+            Write-Host -ForegroundColor Gray "No change required (inforest)"
         }
-
-        Write-Host -ForegroundColor Green "Go forth and add printers!`n"
-        
+        Write-Host -ForegroundColor Green "`nGo forth and add printers!`n"
         Write-Host -ForegroundColor Green "`n$PC - Success`n" 
         Write "$PC" | Out-File $Log -Append
         Write-Host -foreground DarkCyan "`n$log written to successfully`n" 
@@ -133,7 +123,4 @@ net use n: \\DESQLD.INTERNAL\FPNSHARE\$FPNAREA >nul 2>nul")
         } 
     }
 
-Exit-PSSession
-
-CMD /c PAUSE
-
+#CMD /c PAUSE
