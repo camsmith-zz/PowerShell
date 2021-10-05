@@ -1,4 +1,4 @@
-  <#
+<#
   .SYNOPSIS
     Sets up N: on QFES PC's
   .DESCRIPTION
@@ -7,6 +7,8 @@
     Creates a new mapdrives.bat to map n: as a backup if Group Policy dosen't work
     Deletes the sharedfiles.lnk shortcut from the all users desktop
     Writes a log of PC's that cannot be contacted.  (errorlog.txt)
+  .PARAMATER FPN
+    This is the FPN the script will create a drive map to
   .PARAMATER FPNAREA
     This is the FPNAREA that N: will connect to on the DFS
   .PARAMATER PCList
@@ -25,15 +27,15 @@
     General notes
     Created By: Cam Smith
     Created On: July 2021  
-    Last Modified : 16 Sep 2021
+    Last Modified : 05 October 2021
   #>
   param (
+    $FPN = 'EMDFPN02',
     $FPNAREA = 'EMDAREA',
     $PClist = '\\ROKFPN06\n$\Scripts\QFES\pclist.txt',
     $Log = '\\ROKFPN06\n$\Scripts\QFES\log.txt',
     $ErrorLog = '\\ROKFPN06\n$\Scripts\QFES\Errorlog.txt',
-    $deleteFiles = '\\ROKFPN06\n$\Scripts\QFES\removefiles.txt',
-    $SoftwareToInstall = '\\ROKFPN06\n$\Scripts\QFES\softwaretoinstall.txt'
+    $deleteFiles = '\\ROKFPN06\n$\Scripts\QFES\removefiles.txt'
 )
 clear-host
 $RemoveFiles = (Get-Content "$deletefiles")
@@ -58,7 +60,7 @@ printer group policy issue with users not being
 able to add printers`n"
 #CMD /c PAUSE
  foreach ($PC in $PCs) {
-        Write-Host -ForegroundColor Cyan "Checking for files to delete"
+        Write-Host -ForegroundColor Cyan "Checking $PC for files to delete"
         foreach ($RemoveFile in $RemoveFiles){
             $IsItTrue = Test-Path "\\$PC\c$\$RemoveFile"
             if ($IsItTrue -eq $True) {
@@ -68,8 +70,9 @@ able to add printers`n"
             }
         }
         if ($connected -eq $True){
-        Write-Host -ForegroundColor Cyan "Adding new files"
-        $SourceFilePath = "N:\"
+        Write-Host -ForegroundColor Cyan "Applying new files to $PC"
+        #$SourceFilePath = "N:\"
+        $SourceFilePath = "\\$FPN\$FPNAREA\"
         $ShortcutPath = "\\$PC\c$\Users\Public\Desktop\Common.lnk"
         $WScriptObj = New-Object -ComObject ("WScript.Shell")
         $shortcut = $WscriptObj.CreateShortcut($ShortcutPath)
@@ -93,25 +96,6 @@ net use n: \\DESQLD.INTERNAL\FPNSHARE\$FPNAREA >nul 2>nul")
             Write-Host -ForegroundColor RED "Failed to add \\$PC\c$\Users\Public\Desktop\Common.lnk"
         }   
         
-        $RestrictedValue = Invoke-Command -ComputerName $PC {Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\printers\PointAndPrint' -name Restricted }
-        $InForestValue = Invoke-Command -ComputerName $PC {Get-ItemPropertyValue -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\printers\PointAndPrint' -name InForest }
-        Write-Host -ForegroundColor Cyan "Fixing adding printer policy"
-        if ($RestrictedValue -eq 1){
-            Invoke-Command -ComputerName $PC {Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\printers\PointAndPrint' -Name Restricted -Value 0}
-            Write-Host -ForegroundColor Gray "Change applied (restricted)"
-        }
-        else {
-            Write-Host -ForegroundColor Gray "No change required (restricted)"
-        }
-        if ($InForestValue -eq 1){
-            Invoke-Command -ComputerName $PC {Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\printers\PointAndPrint' -Name InForest -Value 0}
-            Write-Host -ForegroundColor Gray  "Change applied (inforest)"
-        }
-        else{
-            Write-Host -ForegroundColor Gray "No change required (inforest)"
-        }
-        Write-Host -ForegroundColor Green "`nGo forth and add printers!`n"
-        Write-Host -ForegroundColor Green "`n$PC - Success`n" 
         Write "$PC" | Out-File $Log -Append
         Write-Host -foreground DarkCyan "`n$log written to successfully`n" 
         $connected = $false
@@ -123,4 +107,4 @@ net use n: \\DESQLD.INTERNAL\FPNSHARE\$FPNAREA >nul 2>nul")
         } 
     }
 
-#CMD /c PAUSE
+Read-Host -Prompt "Press any key to continue or CTRL+C to quit" 
