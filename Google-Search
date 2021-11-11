@@ -1,0 +1,15 @@
+function Google-Search {
+    param(
+    [string] $searchterm1 = 'powershell',
+    [string] $searchterm2 = '',
+    [string] $searchterm3 = '',
+    [string] $searchterm4 = '',
+    [string] $searchterm5 = '',
+    [string] $searchterm6 = ''
+  )
+    cls
+    start "https://www.google.com.au/search?q=$searchterm1 $searchterm2 $searchterm3 $searchterm4 $searchterm5 $searchterm6"
+    Write-Host "`n     Searching Google for " -ForegroundColor Gray -NoNewline
+    Write-Host "$searchterm1 $searchterm2 $searchterm3 $searchterm4 $searchterm5 $searchterm6" -ForegroundColor Yellow
+    Start-Sleep -Seconds 2
+}
